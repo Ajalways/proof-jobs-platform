@@ -1,26 +1,13 @@
 name: proof-jobs
-services:
+static_sites:
 - name: web
   source_dir: /
   github:
-    epo: Ajalways/proof-jobs-platform
+    repo: Ajalways/proof-jobs-platform
     branch: main
-  run_command: npm start
+  build_command: npm run build
+  output_dir: dist
   environment_slug: node-js
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  http_port: 3001
   envs:
   - key: NODE_ENV
     value: production
-  - key: DATABASE_URL
-    value: file:./dev.db
-  - key: JWT_SECRET
-    value: your-super-secret-jwt-key-change-this-in-production
-  - key: STRIPE_SECRET_KEY
-    value: ${STRIPE_SECRET_KEY}
-  - key: STRIPE_PUBLISHABLE_KEY
-    value: ${STRIPE_PUBLISHABLE_KEY}
-  routes:
-  - path: /
-
