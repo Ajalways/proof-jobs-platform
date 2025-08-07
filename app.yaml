@@ -5,9 +5,6 @@ static_sites:
   github:
     repo: Ajalways/proof-jobs-platform
     branch: main
-  build_command: npm run build
+  build_command: npm ci && npm run build
   output_dir: dist
   environment_slug: node-js
-  envs:
-  - key: NODE_ENV
-    value: production
