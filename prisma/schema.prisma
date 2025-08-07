@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  full_name         String?
+  phone             String?
+  phone_verified    Boolean  @default(false)
+  role              String     @default("JOBSEEKER") // ADMIN, COMPANY, JOBSEEKER
+  subscription_tier String   @default("free")
+  vetting_status    String   @default("pending")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Company-specific fields
+  company_name     String?
+  company_size     String?
+  industry         String?
+  location         String?
+  website          String?
+  description      String?
+  hiring_volume    String?
+  budget_range     String?
+
+  // Stripe/Payment fields
+  stripe_customer_id      String?
+  stripe_subscription_id  String?
+  subscription_status     String   @default("inactive")
+  subscription_end_date   DateTime?
+  
+  // Relations
+  jobseeker_bio    JobseekerBio?
+  job_posts        JobPost[]
+  applications     JobApplication[]
+  challenges_created Challenge[]
+  payments         Payment[]
+
+  @@map("users")
+}
+
+model JobseekerBio {
+  id                    String   @id @default(cuid())
+  user_id               String   @unique
+  bio_text              String?
+  skills                String?   // JSON string of skills array
+  experience_level      String?
+  specialization        String?
+  certifications        String?   // JSON string of certifications array
+  salary_range_min      Int?
+  salary_range_max      Int?
+  desired_job_types     String?   // JSON string of job types array
+  work_preference       String?
+  availability          String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("jobseeker_bios")
+}
+
+model JobPost {
+  id                    String   @id @default(cuid())
+  title                 String
+  description           String
+  job_type              String
+  work_location         String
+  location              String?
+  salary_range_min      Int
+  salary_range_max      Int
+  experience_level      String
+  industry              String?
+  required_skills       String?   // JSON string of skills array
+  status                String   @default("active")
+  company_user_id       String
+  company_name          String?
+  is_premium            Boolean  @default(false)
+  payment_status        String   @default("pending") // pending, paid, failed
+  payment_date          DateTime?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  // Relations
+  company      User @relation(fields: [company_user_id], references: [id], onDelete: Cascade)
+  challenges   Challenge[]
+  applications JobApplication[]
+
+  @@map("job_posts")
+}
+
+model Challenge {
+  id                    String   @id @default(cuid())
+  job_post_id           String
+  title                 String
+  description           String
+  challenge_type        String   @default("custom")
+  difficulty            String
+  category              String?
+  time_limit_minutes    Int?
+  content_hash          String?  // For duplicate detection
+  created_by_user_id    String
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  // Relations
+  job_post     JobPost @relation(fields: [job_post_id], references: [id], onDelete: Cascade)
+  created_by   User @relation(fields: [created_by_user_id], references: [id])
+  answer_key   AIChallengeAnswerKey?
+
+  @@map("challenges")
+}
+
+model AIChallengeAnswerKey {
+  id                    String   @id @default(cuid())
+  challenge_id          String   @unique
+  correct_answer        String
+  answer_explanation    String?
+  created_at            DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+
+  @@map("ai_challenge_answer_keys")
+}
+
+model JobApplication {
+  id                    String   @id @default(cuid())
+  job_post_id           String
+  jobseeker_user_id     String
+  status                String   @default("pending")
+  cover_letter          String?
+  notes                 String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  // Relations
+  job_post  JobPost @relation(fields: [job_post_id], references: [id], onDelete: Cascade)
+  jobseeker User @relation(fields: [jobseeker_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([job_post_id, jobseeker_user_id])
+  @@map("job_applications")
+}
+
+model FormField {
+  id        String   @id @default(cuid())
+  name      String
+  label     String
+  type      String
+  required  Boolean  @default(false)
+  visible   Boolean  @default(true)
+  order     Int
+  options   String?   // JSON string for select/radio options
+  form_type String   // "jobseeker" or "company"
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("form_fields")
+}
+
+model Payment {
+  id                       String   @id @default(cuid())
+  user_id                  String
+  amount                   Float
+  currency                 String   @default("usd")
+  stripe_payment_intent_id String?
+  stripe_subscription_id   String?
+  status                   String   // completed, pending, failed, refunded
+  type                     String   // job_posting, subscription, premium_feature
+  metadata                 String?    // JSON string for payment metadata
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// Note: SQLite doesn't support enums, using strings instead
+// enum Role {
+//   ADMIN
+//   COMPANY
+//   JOBSEEKER
+// }
